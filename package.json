@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "icons": "node scripts/generate-icons.mjs"
@@ -28,6 +30,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.1",
+    "prettier": "3.9.9",
+    "prettier-plugin-tailwindcss": "0.8.1",
     "sharp": "^0.35.5",
     "tailwindcss": "^4",
     "typescript": "^5",

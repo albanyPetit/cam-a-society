@@ -10,6 +10,8 @@ describe(".env.example", () => {
 
   it("never makes the secret key public", () => {
     expect(vars).toContain("SUPABASE_SECRET_KEY");
-    expect(vars.filter((v) => v.startsWith("NEXT_PUBLIC_") && v.includes("SECRET"))).toEqual([]);
+    expect(
+      vars.filter((v) => v.startsWith("NEXT_PUBLIC_") && v.includes("SECRET")),
+    ).toEqual([]);
   });
 });

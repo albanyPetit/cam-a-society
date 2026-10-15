@@ -28,10 +28,11 @@ npm install
 npm run dev
 ```
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Start the dev server |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript check |
-| `npm test` | Unit tests (Vitest) |
-| `npm run icons` | Regenerate PNG icons from `public/icons/icon.svg` |
+| Script              | What it does                                      |
+| ------------------- | ------------------------------------------------- |
+| `npm run dev`       | Start the dev server                              |
+| `npm run lint`      | ESLint                                            |
+| `npm run format`    | Format all files with Prettier                    |
+| `npm run typecheck` | TypeScript check                                  |
+| `npm test`          | Unit tests (Vitest)                               |
+| `npm run icons`     | Regenerate PNG icons from `public/icons/icon.svg` |
