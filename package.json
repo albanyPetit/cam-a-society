@@ -14,7 +14,9 @@
     "format:check": "prettier --check .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "db:push": "supabase db push",
+    "seed:event": "node --env-file=.env.local scripts/seed-event.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -33,6 +35,7 @@
     "prettier": "3.9.9",
     "prettier-plugin-tailwindcss": "0.8.1",
     "sharp": "^0.35.5",
+    "supabase": "2.120.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"
