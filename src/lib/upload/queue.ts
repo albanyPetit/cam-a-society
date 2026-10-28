@@ -38,6 +38,17 @@ export class PermanentShotError extends Error {}
 // Thrown by ShotApi.confirm when the file never reached storage.
 export class MissingFileError extends Error {}
 
+// Shots used = everything the server has, plus queued shots it hasn't seen
+// yet. Matching by client_id counts each shot exactly once, even while a
+// reserve is in flight.
+export function countUsedShots(
+  serverClientIds: readonly string[],
+  queuedClientIds: readonly string[],
+): number {
+  const known = new Set(serverClientIds);
+  return known.size + queuedClientIds.filter((id) => !known.has(id)).length;
+}
+
 // 2s, 4s, 8s … capped at 1 minute.
 export function retryDelayMs(attempts: number): number {
   return Math.min(60_000, 2_000 * 2 ** Math.max(0, attempts - 1));

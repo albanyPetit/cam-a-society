@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countUsedShots,
   drainQueue,
   memoryStore,
   MissingFileError,
@@ -50,6 +51,16 @@ function fakeApi(failOnce: Partial<Record<keyof ShotApi, Error>> = {}) {
   };
   return { api, calls };
 }
+
+describe("countUsedShots", () => {
+  it("counts a shot once whether it's on the server, the phone or both", () => {
+    // a: uploaded and gone from the phone; b: reserved, still uploading;
+    // c: taken offline, server hasn't seen it yet.
+    expect(countUsedShots(["a", "b"], ["b", "c"])).toBe(3);
+    expect(countUsedShots([], ["c"])).toBe(1);
+    expect(countUsedShots(["a"], [])).toBe(1);
+  });
+});
 
 describe("retryDelayMs", () => {
   it("backs off exponentially up to one minute", () => {

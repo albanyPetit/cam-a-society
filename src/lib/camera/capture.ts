@@ -13,6 +13,7 @@ async function encodeFrame(
   source: CanvasImageSource,
   sourceWidth: number,
   sourceHeight: number,
+  mirror = false,
 ): Promise<Blob> {
   const crop = centerCrop(
     sourceWidth,
@@ -28,6 +29,10 @@ async function encodeFrame(
   if (!ctx) throw new Error("canvas_unavailable");
 
   ctx.imageSmoothingQuality = "high";
+  if (mirror) {
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+  }
   ctx.drawImage(
     source,
     crop.sx,
@@ -51,8 +56,12 @@ async function encodeFrame(
   return blob;
 }
 
-export function captureVideoFrame(video: HTMLVideoElement): Promise<Blob> {
-  return encodeFrame(video, video.videoWidth, video.videoHeight);
+// Selfies are saved mirrored, exactly as the (mirrored) preview showed them.
+export function captureVideoFrame(
+  video: HTMLVideoElement,
+  { mirror = false } = {},
+): Promise<Blob> {
+  return encodeFrame(video, video.videoWidth, video.videoHeight, mirror);
 }
 
 // Fallback path (photo from the phone's own camera app). Decoding through an

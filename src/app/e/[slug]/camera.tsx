@@ -36,7 +36,7 @@ export function CameraScreen({
   displayName: string;
 }) {
   const now = useNow();
-  const { shotsLeft, pending, online, rejection, clearRejection } = useShots(
+  const { shotsLeft, pending, offline, rejection, clearRejection } = useShots(
     event.id,
     event.max_shots,
   );
@@ -82,7 +82,7 @@ export function CameraScreen({
           {REJECTION_MESSAGES[rejection] ?? "A photo couldn't be saved."}
         </p>
       )}
-      <UploadStatus pending={pending} online={online} />
+      <UploadStatus pending={pending} offline={offline} />
     </section>
   );
 }
@@ -104,18 +104,18 @@ function Notice({
 
 function UploadStatus({
   pending,
-  online,
+  offline,
 }: {
   pending: number;
-  online: boolean;
+  offline: boolean;
 }) {
   if (pending === 0) return null;
   const photos = pending === 1 ? "1 photo" : `${pending} photos`;
   return (
     <p className="text-center text-sm text-muted" role="status">
-      {online
-        ? `Saving ${photos}…`
-        : `You're offline. ${photos} will upload when you're back online.`}
+      {offline
+        ? `No connection right now. ${photos} will upload automatically when you're back online.`
+        : `Saving ${photos}…`}
     </p>
   );
 }
@@ -227,7 +227,9 @@ function Viewfinder({
     if (busy) return;
     const video = videoRef.current;
     if (status === "live" && video && video.videoWidth > 0) {
-      void saveShot(() => captureVideoFrame(video));
+      void saveShot(() =>
+        captureVideoFrame(video, { mirror: facing === "user" }),
+      );
     } else {
       // No live preview (permission denied / unsupported): use the phone's
       // own camera app instead.

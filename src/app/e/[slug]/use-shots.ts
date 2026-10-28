@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { countUsedShots } from "@/lib/upload/queue";
 import {
   processQueue,
   queuedShots,
@@ -9,11 +10,12 @@ import {
 } from "@/lib/upload/browser-queue";
 
 type ShotsState = {
-  // Shots the server has recorded (null until the first successful fetch).
-  serverUsed: number | null;
-  // Shots still on the phone, and how many of those the server hasn't seen.
+  // null until the server has answered at least once.
+  used: number | null;
+  // Shots still on the phone, waiting to finish uploading.
   pending: number;
-  unreserved: number;
+  // Some of those already failed an attempt (no connection, most likely).
+  stalled: boolean;
 };
 
 // Shot counter + upload status for the camera screen. Runs the upload queue
@@ -22,9 +24,9 @@ type ShotsState = {
 // retry timer.
 export function useShots(eventId: string, maxShots: number) {
   const [state, setState] = useState<ShotsState>({
-    serverUsed: null,
+    used: null,
     pending: 0,
-    unreserved: 0,
+    stalled: false,
   });
   const [online, setOnline] = useState(true);
   const [rejection, setRejection] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function useShots(eventId: string, maxShots: number) {
     const supabase = createClient();
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    let lastServerUsed: number | null = null;
+    let serverClientIds: string[] | null = null;
 
     const kick = () => void processQueue(supabase);
 
@@ -42,15 +44,23 @@ export function useShots(eventId: string, maxShots: number) {
         queuedShots(eventId),
         supabase
           .rpc("get_my_shots", { p_event_id: eventId })
-          .maybeSingle<{ used: number }>(),
+          .maybeSingle<{ client_ids: string[] }>(),
       ]);
-      if (!server.error && server.data) lastServerUsed = server.data.used;
+      // Offline: keep the last known server state.
+      if (!server.error && server.data)
+        serverClientIds = server.data.client_ids;
       if (cancelled) return;
 
       setState({
-        serverUsed: lastServerUsed,
+        used:
+          serverClientIds === null
+            ? null
+            : countUsedShots(
+                serverClientIds,
+                shots.map((shot) => shot.clientId),
+              ),
         pending: shots.length,
-        unreserved: shots.filter((shot) => !shot.storagePath).length,
+        stalled: shots.some((shot) => shot.attempts > 0),
       });
 
       clearTimeout(retryTimer);
@@ -91,15 +101,16 @@ export function useShots(eventId: string, maxShots: number) {
     };
   }, [eventId]);
 
-  const used =
-    state.serverUsed === null ? null : state.serverUsed + state.unreserved;
+  const { used } = state;
 
   return {
     // null = unknown yet (e.g. first load while offline); the server still
     // enforces the limit, so the camera stays usable.
     shotsLeft: used === null ? null : Math.max(0, maxShots - used),
     pending: state.pending,
-    online,
+    // iOS doesn't reliably report going offline, so failed upload attempts
+    // count as "offline" too.
+    offline: !online || state.stalled,
     rejection,
     clearRejection: useCallback(() => setRejection(null), []),
   };
