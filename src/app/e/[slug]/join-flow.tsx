@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { PublicEvent } from "@/lib/events";
 import { privacy } from "@/lib/privacy";
+import { CameraScreen } from "./camera";
 
 type Step =
   | { name: "checking" }
@@ -233,27 +234,5 @@ function Joined({
   displayName: string;
   event: PublicEvent;
 }) {
-  // English UI → en-GB (24-hour clock), in the viewer's own time zone.
-  const reveal = new Date(event.reveal_at).toLocaleString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  return (
-    <section className="flex flex-col items-center gap-4 text-center">
-      <h2 className="text-2xl font-semibold">You&apos;re in, {displayName}!</h2>
-      <p className="text-muted">
-        You have <strong className="text-foreground">{event.max_shots}</strong>{" "}
-        shots. Your photos develop on{" "}
-        <strong className="text-foreground">{reveal}</strong>.
-      </p>
-      {/* Phase 2: the camera goes here. */}
-      <p className="mt-6 rounded-xl border border-dashed border-muted/40 px-4 py-6 text-sm text-muted">
-        The camera is coming soon.
-      </p>
-    </section>
-  );
+  return <CameraScreen event={event} displayName={displayName} />;
 }
