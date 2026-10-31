@@ -3,9 +3,10 @@
 //   npm run seed:event
 //   npm run seed:event -- --name "Sunrise Yoga" --hours 3 --reveal-in 10
 //
-// --name       Event name (default: "Test event <time>")
-// --hours      Duration from now (default: 3)
-// --reveal-in  Minutes from now until reveal (default: event end + 2 h)
+// --name        Event name (default: "Test event <time>")
+// --hours       Duration from now (default: 3)
+// --reveal-in   Minutes from now until reveal (default: event end + 2 h)
+// --date-stamp  Burn the orange date into each photo
 //
 // Uses the secret key (bypasses RLS), so it only runs locally.
 import { randomInt } from "node:crypto";
@@ -17,6 +18,7 @@ const { values } = parseArgs({
     name: { type: "string" },
     hours: { type: "string", default: "3" },
     "reveal-in": { type: "string" },
+    "date-stamp": { type: "boolean", default: false },
   },
 });
 
@@ -49,6 +51,7 @@ const { data, error } = await supabase
     starts_at: now.toISOString(),
     ends_at: endsAt.toISOString(),
     reveal_at: revealAt?.toISOString(),
+    date_stamp: values["date-stamp"],
   })
   .select("name, ends_at, reveal_at")
   .single();

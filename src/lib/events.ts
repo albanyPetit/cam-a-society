@@ -7,6 +7,7 @@ export type PublicEvent = {
   ends_at: string;
   reveal_at: string;
   max_shots: number;
+  date_stamp: boolean;
 };
 
 // Must match the `events.slug` check constraint in the initial migration.

@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicEvent } from "@/lib/events";
-import { captureFile, captureVideoFrame } from "@/lib/camera/capture";
+import {
+  captureFile,
+  captureVideoFrame,
+  type CapturedShot,
+} from "@/lib/camera/capture";
 import { filmAspect } from "@/lib/camera/frame";
 import { formatWhen } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
@@ -65,7 +69,11 @@ export function CameraScreen({
         <p className="text-center text-sm text-muted">
           Hi {displayName}! Photos develop {formatWhen(event.reveal_at)}.
         </p>
-        <Viewfinder eventId={event.id} shotsLeft={shotsLeft} />
+        <Viewfinder
+          eventId={event.id}
+          shotsLeft={shotsLeft}
+          dateStamp={event.date_stamp}
+        />
       </>
     );
   }
@@ -199,9 +207,11 @@ function useCameraStream(facing: Facing) {
 function Viewfinder({
   eventId,
   shotsLeft,
+  dateStamp,
 }: {
   eventId: string;
   shotsLeft: number | null;
+  dateStamp: boolean;
 }) {
   const [facing, setFacing] = useState<Facing>("environment");
   const { videoRef, status, landscape } = useCameraStream(facing);
@@ -209,14 +219,14 @@ function Viewfinder({
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState(false);
 
-  async function saveShot(capture: () => Promise<Blob>) {
+  async function saveShot(capture: () => Promise<CapturedShot>) {
     setBusy(true);
     setFlash(true);
     navigator.vibrate?.(30);
     setTimeout(() => setFlash(false), 180);
     try {
-      const jpeg = await capture();
-      await enqueueShot(eventId, jpeg);
+      const { jpeg, hasLightLeak } = await capture();
+      await enqueueShot(eventId, jpeg, hasLightLeak);
       void processQueue(createClient());
     } finally {
       setBusy(false);
@@ -228,7 +238,7 @@ function Viewfinder({
     const video = videoRef.current;
     if (status === "live" && video && video.videoWidth > 0) {
       void saveShot(() =>
-        captureVideoFrame(video, { mirror: facing === "user" }),
+        captureVideoFrame(video, { mirror: facing === "user", dateStamp }),
       );
     } else {
       // No live preview (permission denied / unsupported): use the phone's
@@ -240,7 +250,7 @@ function Viewfinder({
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) void saveShot(() => captureFile(file));
+    if (file) void saveShot(() => captureFile(file, { dateStamp }));
   }
 
   return (

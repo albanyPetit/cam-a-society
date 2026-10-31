@@ -1,3 +1,5 @@
+import { applyFilm } from "@/lib/film/pipeline";
+import { randomSeed } from "@/lib/film/params";
 import { centerCrop, filmAspect, fitWithin } from "./frame";
 
 // Output size/quality: ~300–700 KB per photo, sharp enough to print small.
@@ -7,14 +9,22 @@ export const CAPTURE = {
   jpegQuality: 0.85,
 } as const;
 
-// Crops to a 35mm frame, scales down and encodes as JPEG.
-// Phase 3 hooks the film effect in between drawing and encoding.
+export type CaptureOptions = {
+  mirror?: boolean;
+  // Burn the date into the corner (per-event setting).
+  dateStamp?: boolean;
+};
+
+export type CapturedShot = { jpeg: Blob; hasLightLeak: boolean };
+
+// Crops to a 35mm frame, scales down, develops the film look and encodes
+// as JPEG. Only this final image ever leaves the phone.
 async function encodeFrame(
   source: CanvasImageSource,
   sourceWidth: number,
   sourceHeight: number,
-  mirror = false,
-): Promise<Blob> {
+  { mirror = false, dateStamp = false }: CaptureOptions,
+): Promise<CapturedShot> {
   const crop = centerCrop(
     sourceWidth,
     sourceHeight,
@@ -44,6 +54,12 @@ async function encodeFrame(
     width,
     height,
   );
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  const { hasLightLeak } = applyFilm(canvas, {
+    seed: randomSeed(),
+    dateStamp: dateStamp ? new Date() : null,
+  });
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/jpeg", CAPTURE.jpegQuality),
@@ -53,26 +69,29 @@ async function encodeFrame(
   canvas.height = 0;
 
   if (!blob) throw new Error("encode_failed");
-  return blob;
+  return { jpeg: blob, hasLightLeak };
 }
 
-// Selfies are saved mirrored, exactly as the (mirrored) preview showed them.
+// Selfies (mirror: true) are saved exactly as the mirrored preview shows them.
 export function captureVideoFrame(
   video: HTMLVideoElement,
-  { mirror = false } = {},
-): Promise<Blob> {
-  return encodeFrame(video, video.videoWidth, video.videoHeight, mirror);
+  options: CaptureOptions = {},
+): Promise<CapturedShot> {
+  return encodeFrame(video, video.videoWidth, video.videoHeight, options);
 }
 
 // Fallback path (photo from the phone's own camera app). Decoding through an
 // <img> applies the EXIF orientation, so rotated photos come out upright.
-export async function captureFile(file: File): Promise<Blob> {
+export async function captureFile(
+  file: File,
+  options: CaptureOptions = {},
+): Promise<CapturedShot> {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
     img.src = url;
     await img.decode();
-    return await encodeFrame(img, img.naturalWidth, img.naturalHeight);
+    return await encodeFrame(img, img.naturalWidth, img.naturalHeight, options);
   } finally {
     URL.revokeObjectURL(url);
   }
