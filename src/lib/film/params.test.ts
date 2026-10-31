@@ -7,7 +7,13 @@ import {
 } from "./params";
 import { filmPreset } from "./preset";
 
-const exposure = filmPreset.exposure;
+// Fixed values, so tuning the real preset in /lab never breaks these tests.
+const exposure = {
+  target: 0.48,
+  minGain: 0.75,
+  maxGain: 2.4,
+  highlightLimit: 0.97,
+};
 const fill = (value: number, n = 400) => new Array(n).fill(value);
 
 describe("computeExposureGain", () => {

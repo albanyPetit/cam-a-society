@@ -71,8 +71,8 @@ export const filmPreset: FilmPreset = {
   exposure: {
     target: 0.48,
     minGain: 0.9,
-    maxGain: 2.4,
-    highlightLimit: 0.97,
+    maxGain: 1.7,
+    highlightLimit: 0.83,
   },
   color: {
     warmth: 0.08,
@@ -84,8 +84,8 @@ export const filmPreset: FilmPreset = {
     highlightTintAmount: 0.3,
   },
   tone: {
-    contrast: 0.32,
-    blackLift: 0.055,
+    contrast: 0.16,
+    blackLift: 0.06,
     whitePoint: 0.955,
   },
   saturation: {
@@ -95,9 +95,9 @@ export const filmPreset: FilmPreset = {
     skin: 0.92,
   },
   grain: {
-    amount: 0.055,
-    size: 1.4,
-    shadowBoost: 0.8,
+    amount: 0.095,
+    size: 1.5,
+    shadowBoost: 0.85,
   },
   vignette: {
     amount: 0.22,
@@ -116,14 +116,14 @@ export const filmPreset: FilmPreset = {
   },
   lightLeak: {
     probability: 0.2,
-    intensity: 0.55,
-    size: 0.45,
+    intensity: 0.6,
+    size: 0.46,
     colorA: [1.0, 0.62, 0.22],
     colorB: [0.95, 0.18, 0.08],
   },
   dateStamp: {
     color: "#ff8a1f",
-    sizeRatio: 0.045,
+    sizeRatio: 0.028,
     margin: 0.045,
   },
 };
