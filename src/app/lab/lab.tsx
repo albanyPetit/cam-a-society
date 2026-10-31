@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { centerCrop, filmAspect, fitWithin } from "@/lib/camera/frame";
+import { frameToCanvas } from "@/lib/camera/capture";
+import type { Facing } from "@/lib/camera/stream";
+import { useCameraStream } from "@/lib/camera/use-camera-stream";
 import {
   controlGroups,
   getValue,
@@ -30,6 +32,7 @@ export function Lab() {
   const [leakMode, setLeakMode] = useState<LeakMode>("auto");
   const [dateStamp, setDateStamp] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   // Restore tweaks from the last session (per browser).
   useEffect(() => {
@@ -146,10 +149,30 @@ export function Lab() {
       </aside>
 
       <main className="flex-1 p-5">
+        {cameraOpen ? (
+          <LabCamera
+            onCapture={(photo) => setPhotos((prev) => [photo, ...prev])}
+            onClose={() => setCameraOpen(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCameraOpen(true)}
+            className="mb-4 w-full rounded-2xl border border-accent/60 px-6 py-5 text-center text-sm text-muted hover:border-accent"
+          >
+            <span className="block text-base text-foreground">
+              Take test photos with the app camera
+            </span>
+            Same camera, crop and quality as the real app — tune on these.
+          </button>
+        )}
+
         <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-muted/40 px-6 py-8 text-center text-sm text-muted hover:border-accent">
-          <span className="text-base text-foreground">Add test photos</span>
-          Indoor, outdoor, portraits, groups… they&apos;re cropped to 35mm like
-          in the app.
+          <span className="text-base text-foreground">
+            Or add photos from your gallery
+          </span>
+          Note: phone camera photos are already processed (HDR, sharpening), so
+          they look punchier than what the app captures.
           <input
             type="file"
             accept="image/*"
@@ -304,33 +327,87 @@ async function loadPhoto(file: File): Promise<LabPhoto> {
     const img = new Image();
     img.src = url;
     await img.decode();
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
-    const crop = centerCrop(w, h, filmAspect(w, h));
-    const size = fitWithin(crop.sw, crop.sh, PREVIEW_EDGE);
-    const canvas = document.createElement("canvas");
-    canvas.width = size.width;
-    canvas.height = size.height;
-    const ctx = canvas.getContext("2d")!;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(
-      img,
-      crop.sx,
-      crop.sy,
-      crop.sw,
-      crop.sh,
-      0,
-      0,
-      size.width,
-      size.height,
-    );
     return {
       id: crypto.randomUUID(),
       name: file.name,
-      original: canvas,
+      original: frameToCanvas(img, img.naturalWidth, img.naturalHeight, {
+        maxEdge: PREVIEW_EDGE,
+      }),
       seed: randomSeed(),
     };
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+// Same live camera as the event page; captures frames without the effect.
+function LabCamera({
+  onCapture,
+  onClose,
+}: {
+  onCapture: (photo: LabPhoto) => void;
+  onClose: () => void;
+}) {
+  const [facing, setFacing] = useState<Facing>("environment");
+  const { videoRef, status, landscape } = useCameraStream(facing);
+  const [count, setCount] = useState(0);
+
+  function capture() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) return;
+    const n = count + 1;
+    setCount(n);
+    onCapture({
+      id: crypto.randomUUID(),
+      name: `Camera shot ${n} (${video.videoWidth}×${video.videoHeight})`,
+      original: frameToCanvas(video, video.videoWidth, video.videoHeight, {
+        mirror: facing === "user",
+        maxEdge: PREVIEW_EDGE,
+      }),
+      seed: randomSeed(),
+    });
+  }
+
+  return (
+    <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl border border-muted/30 p-4">
+      <div
+        className={`relative w-full max-w-sm overflow-hidden rounded-xl bg-black ${landscape ? "aspect-[3/2]" : "aspect-[2/3]"}`}
+      >
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          autoPlay
+          className={`size-full object-cover ${facing === "user" ? "-scale-x-100" : ""}`}
+        />
+        {status !== "live" && (
+          <p className="absolute inset-0 m-auto h-fit text-center text-sm text-muted">
+            {status === "starting" ? "Starting camera…" : "Camera unavailable"}
+          </p>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={capture}
+          disabled={status !== "live"}
+          className="rounded-full bg-accent px-5 py-2 font-semibold text-background disabled:opacity-40"
+        >
+          Capture
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setFacing((f) => (f === "environment" ? "user" : "environment"))
+          }
+          className={buttonClass}
+        >
+          Flip
+        </button>
+        <button type="button" onClick={onClose} className={buttonClass}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
 }

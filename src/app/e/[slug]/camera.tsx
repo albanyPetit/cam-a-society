@@ -7,14 +7,12 @@ import {
   captureVideoFrame,
   type CapturedShot,
 } from "@/lib/camera/capture";
-import { filmAspect } from "@/lib/camera/frame";
+import type { Facing } from "@/lib/camera/stream";
+import { useCameraStream } from "@/lib/camera/use-camera-stream";
 import { formatWhen } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { enqueueShot, processQueue } from "@/lib/upload/browser-queue";
 import { useShots } from "./use-shots";
-
-type Facing = "environment" | "user";
-type StreamStatus = "starting" | "live" | "blocked";
 
 const REJECTION_MESSAGES: Record<string, string> = {
   no_shots_left: "Your roll is full — that last photo couldn't be saved.",
@@ -126,82 +124,6 @@ function UploadStatus({
         : `Saving ${photos}…`}
     </p>
   );
-}
-
-function useCameraStream(facing: Facing) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<StreamStatus>("starting");
-  // Follows the stream's real orientation, so the viewfinder shows exactly
-  // the frame that gets saved (2:3 portrait or 3:2 landscape).
-  const [landscape, setLandscape] = useState(false);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    const onResize = () => {
-      if (video && video.videoWidth > 0) {
-        setLandscape(filmAspect(video.videoWidth, video.videoHeight) > 1);
-      }
-    };
-    video?.addEventListener("resize", onResize);
-    video?.addEventListener("loadedmetadata", onResize);
-    return () => {
-      video?.removeEventListener("resize", onResize);
-      video?.removeEventListener("loadedmetadata", onResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    let cancelled = false;
-
-    async function start() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setStatus("blocked");
-        return;
-      }
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: facing },
-            width: { ideal: 1920 },
-            height: { ideal: 1920 },
-          },
-        });
-        if (cancelled) return stop();
-        const video = videoRef.current;
-        if (video) {
-          video.srcObject = stream;
-          await video.play().catch(() => {});
-        }
-        setStatus("live");
-      } catch {
-        if (!cancelled) setStatus("blocked");
-      }
-    }
-
-    function stop() {
-      stream?.getTracks().forEach((track) => track.stop());
-      stream = null;
-    }
-
-    // Release the camera when the app goes to the background (and the
-    // green "camera in use" indicator with it); restart when it's back.
-    function onVisibility() {
-      if (document.visibilityState === "hidden") stop();
-      else if (!stream) void start();
-    }
-
-    void start();
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisibility);
-      stop();
-    };
-  }, [facing]);
-
-  return { videoRef, status, landscape };
 }
 
 function Viewfinder({

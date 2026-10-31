@@ -17,20 +17,20 @@ export type CaptureOptions = {
 
 export type CapturedShot = { jpeg: Blob; hasLightLeak: boolean };
 
-// Crops to a 35mm frame, scales down, develops the film look and encodes
-// as JPEG. Only this final image ever leaves the phone.
-async function encodeFrame(
+// Crops a frame to 35mm and scales it down, before any film effect. Shared
+// by the camera and /lab, so the lab tunes on exactly what the app captures.
+export function frameToCanvas(
   source: CanvasImageSource,
   sourceWidth: number,
   sourceHeight: number,
-  { mirror = false, dateStamp = false }: CaptureOptions,
-): Promise<CapturedShot> {
+  { mirror = false, maxEdge = CAPTURE.maxEdge as number } = {},
+): HTMLCanvasElement {
   const crop = centerCrop(
     sourceWidth,
     sourceHeight,
     filmAspect(sourceWidth, sourceHeight),
   );
-  const { width, height } = fitWithin(crop.sw, crop.sh, CAPTURE.maxEdge);
+  const { width, height } = fitWithin(crop.sw, crop.sh, maxEdge);
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -54,7 +54,20 @@ async function encodeFrame(
     width,
     height,
   );
+  // Undo the mirror transform so later drawing (film, date stamp) isn't flipped.
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return canvas;
+}
+
+// Crops, scales down, develops the film look and encodes as JPEG. Only this
+// final image ever leaves the phone.
+async function encodeFrame(
+  source: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
+  { mirror = false, dateStamp = false }: CaptureOptions,
+): Promise<CapturedShot> {
+  const canvas = frameToCanvas(source, sourceWidth, sourceHeight, { mirror });
 
   const { hasLightLeak } = applyFilm(canvas, {
     seed: randomSeed(),
